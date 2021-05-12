@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <glm/glm.hpp>
 #include <shaderc/shaderc.hpp>
 

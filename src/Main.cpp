@@ -85,13 +85,21 @@ struct Vertex {
   }
 };
 
-  const std::vector<Vertex> vertices = {
-    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-  };
+struct UniformBufferObject {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 projection;
+};
 
-   
+const std::vector<Vertex> vertices = {
+  {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+  {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+  {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+  {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+};
+
+const std::vector<uint16_t> indices = { 0, 1, 2, 2, 3, 0 };
+
 class HelloTriangleApplication {
 public:
   void run() {
@@ -114,8 +122,11 @@ private:
     
     CleanupSwapChain();
 
-    vkFreeMemory(device, vertex_buffer_memory, 0);
+    vkFreeMemory(device, vertex_buffer_memory, nullptr);
     vkDestroyBuffer(device, vertex_buffer, nullptr);
+    
+    vkFreeMemory(device, index_buffer_memory, nullptr);
+    vkDestroyBuffer(device, index_buffer, nullptr);
 
     for (size_t ii = 0; ii < MAX_FRAMES_IN_FLIGHT; ii++) {
       vkDestroySemaphore(device, render_finished_semaphores[ii], nullptr);
@@ -156,6 +167,7 @@ private:
     CreateFrameBuffers();
     CreateCommandPool();
     CreateVertexBuffer();
+    CreateIndexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
   }
@@ -467,14 +479,14 @@ private:
   }
 
   void CreateGraphicsPipeline() {
-    std::vector<char> vert_shader_code = ReadFile("shaders/vert.spv");
-    std::vector<char> frag_shader_code = ReadFile("shaders/frag.spv");
+    std::string vert_shader_code = ReadFile("shaders/vert.glsl");
+    std::string frag_shader_code = ReadFile("shaders/frag.glsl");
 
-   // std::vector<uint32_t> vert_shader_bin = CompileShader("vertex_shader", shaderc_glsl_vertex_shader, vert_shader_code);
-   // std::vector<uint32_t> frag_shader_bin = CompileShader("fragment shader", shaderc_glsl_fragment_shader, frag_shader_code);
+    std::vector<uint32_t> vert_shader_bin = CompileShader("vertex_shader", shaderc_glsl_vertex_shader, vert_shader_code);
+    std::vector<uint32_t> frag_shader_bin = CompileShader("fragment_shader", shaderc_glsl_fragment_shader, frag_shader_code);
 
-    VkShaderModule vert_shader_module = CreateShaderModule(vert_shader_code);
-    VkShaderModule frag_shader_module = CreateShaderModule(frag_shader_code);
+    VkShaderModule vert_shader_module = CreateShaderModule(vert_shader_bin);
+    VkShaderModule frag_shader_module = CreateShaderModule(frag_shader_bin);
 
     VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
     vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO; 
@@ -590,7 +602,7 @@ private:
     vkDestroyShaderModule(device, vert_shader_module, nullptr);
     vkDestroyShaderModule(device, frag_shader_module, nullptr);
   }
-  /*
+  
   std::vector<uint32_t> CompileShader(const std::string& source_name, shaderc_shader_kind shader_kind,
     const std::string& source, bool optimize = false) {
 
@@ -611,7 +623,6 @@ private:
 
     return {module.cbegin(), module.cend()};
   }
-  */
 
   void CreateRenderPass() {
     VkAttachmentDescription color_attachment{};
@@ -767,6 +778,7 @@ private:
     alloc_info.commandPool = command_pool;
     alloc_info.commandBufferCount = 1;
 
+    
     VkCommandBuffer command_buffer;
     vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
 
@@ -792,6 +804,28 @@ private:
 
     vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 
+  }
+
+  void CreateIndexBuffer() {
+    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+    void* data;
+    vkMapMemory(device, staging_buffer_memory, 0, buffer_size, 0, &data);
+    memcpy(data, indices.data(), (size_t)buffer_size);
+    vkUnmapMemory(device, staging_buffer_memory);
+
+    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer, index_buffer_memory);
+
+    CopyBuffer(staging_buffer, index_buffer, buffer_size);
+
+    vkDestroyBuffer(device, staging_buffer, nullptr);
+    vkFreeMemory(device, staging_buffer_memory, nullptr);
   }
 
   void CreateCommandBuffers() {
@@ -834,7 +868,8 @@ private:
       VkBuffer vertex_buffers[] = { vertex_buffer };
       VkDeviceSize offsets[] = { 0 };
       vkCmdBindVertexBuffers(command_buffers[ii], 0, 1, vertex_buffers, offsets);
-      vkCmdDraw(command_buffers[ii], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+      vkCmdBindIndexBuffer(command_buffers[ii], index_buffer, 0, VK_INDEX_TYPE_UINT16);
+      vkCmdDrawIndexed(command_buffers[ii], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
       vkCmdEndRenderPass(command_buffers[ii]);
 
       if (vkEndCommandBuffer(command_buffers[ii]) != VK_SUCCESS) {
@@ -843,13 +878,11 @@ private:
     }
   }
 
-  VkShaderModule CreateShaderModule(const std::vector<char>& code) {
+  VkShaderModule CreateShaderModule(const std::vector<uint32_t>& code) {
     VkShaderModuleCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    create_info.codeSize = code.size();
-    // the size of the bytecode is in bytes, but the bytecode pointer is 
-    // a uint32_t pointer rather than a char pointer 
-    create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    create_info.codeSize = sizeof(uint32_t) * code.size();
+    create_info.pCode = code.data();
 
     VkShaderModule shader_module;
     if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS) {
@@ -859,19 +892,20 @@ private:
     return shader_module;
   }
 
-  std::vector<char> ReadFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+  std::string ReadFile(const char* filepath) {
+    std::ifstream file;
 
-    if (!file.is_open()) {
-      throw std::runtime_error("failed to open file!");
+    if(file.fail()) {
+      throw std::runtime_error("could not open " + *filepath);
     }
 
-    size_t file_size = (size_t)file.tellg();
-    std::vector<char> buffer(file_size);
-    file.seekg(0);
-    file.read(buffer.data(), file_size);
+    file.open(filepath); 
+    std::stringstream sstream;  
+    sstream << file.rdbuf();
     file.close();
-    return buffer;
+
+    std::string code = sstream.str();
+    return code;
   }
 
   void SetupDebugMessenger() {
@@ -1164,6 +1198,8 @@ private:
 
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_buffer_memory;
+  VkBuffer index_buffer;
+  VkDeviceMemory index_buffer_memory;
 
   bool frame_buffer_resized = false;
 };
