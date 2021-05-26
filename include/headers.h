@@ -22,4 +22,3 @@
 #include <chrono>
 #include <shaderc/shaderc.hpp>
 
-
