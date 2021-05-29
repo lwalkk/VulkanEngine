@@ -37,21 +37,21 @@ std::vector<uint32_t> CompileShader(const std::string& source_name, shaderc_shad
   return { module.cbegin(), module.cend() };
 }
 
-VkShaderModule CreateShaderModule(const std::vector<uint32_t>& code) {
+VkShaderModule CreateShaderModule(const std::vector<uint32_t>& code, const InitData& init) {
   VkShaderModuleCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   create_info.codeSize = sizeof(uint32_t) * code.size();
   create_info.pCode = code.data();
 
   VkShaderModule shader_module;
-  if (vkCreateShaderModule()                                                                                                                                                                                                                                                                                    vice, &create_info, nullptr, &shader_module) != VK_SUCCESS) {
+  if (vkCreateShaderModule(init.device, &create_info, nullptr, &shader_module) != VK_SUCCESS){ 
     throw std::runtime_error("failed to create shader module!");
   }
 
   return shader_module;
 }
 
-Shader::Shader(std::string shader_name, std::string file_name, ShaderType type) {
+Shader::Shader(std::string shader_name, std::string file_name, ShaderType type, const InitData& init) {
 
   std::string shader_source = ReadFile(shader_name.c_str());
 
@@ -69,7 +69,7 @@ Shader::Shader(std::string shader_name, std::string file_name, ShaderType type) 
 
   std::vector<uint32_t> shader_bin = CompileShader(shader_name, kind, shader_source);
 
-  module_ = CreateShaderModule(shader_bin);
+  module_ = CreateShaderModule(shader_bin, init);
 
   info_.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   info_.stage = type_flag;
