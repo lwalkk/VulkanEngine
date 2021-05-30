@@ -12,7 +12,7 @@ enum class ShaderType{
 
 class Shader {
 public:
-  Shader(std::string shader_name, std::string file_name, ShaderType type , const InitData& init);
+  Shader(const char* file_name, const char* entry_name, ShaderType type , const InitData& init);
   ~Shader();
 
   VkShaderModule GetModule() const { return module_; }
@@ -21,4 +21,6 @@ public:
 private:
   VkShaderModule module_;
   VkPipelineShaderStageCreateInfo info_{};
+  const InitData& init_;
+  std::string entry_;
 };

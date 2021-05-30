@@ -567,28 +567,11 @@ private:
   }
 
   void CreateGraphicsPipeline() {
-    std::string vert_shader_code = ReadFile("shaders/vert.glsl");
-    std::string frag_shader_code = ReadFile("shaders/frag.glsl");
 
-    std::vector<uint32_t> vert_shader_bin = CompileShader("vertex_shader", shaderc_glsl_vertex_shader, vert_shader_code);
-    std::vector<uint32_t> frag_shader_bin = CompileShader("fragment_shader", shaderc_glsl_fragment_shader, frag_shader_code);
+    Shader vert_shader("shaders/vert.glsl", "main", ShaderType::VERTEX_SHADER, init);
+    Shader frag_shader("shaders/frag.glsl", "main", ShaderType::FRAGMENT_SHADER, init);
 
-    VkShaderModule vert_shader_module = CreateShaderModule(vert_shader_bin);
-    VkShaderModule frag_shader_module = CreateShaderModule(frag_shader_bin);
-
-    VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
-    vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vert_shader_stage_info.module = vert_shader_module;
-    vert_shader_stage_info.pName = "main";
-
-    VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
-    frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    frag_shader_stage_info.module = frag_shader_module;
-    frag_shader_stage_info.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader_stage_info, frag_shader_stage_info };
+    VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader.GetInfo(), frag_shader.GetInfo() };
 
     auto binding_description = Vertex::GetBindingDescription();
     auto attribute_descriptions = Vertex::GetAttributeDescription();
@@ -687,9 +670,6 @@ private:
       VK_SUCCESS) {
       throw std::runtime_error("failed to create graphics pipeline!");
     }
-
-    vkDestroyShaderModule(init.device, vert_shader_module, nullptr);
-    vkDestroyShaderModule(init.device, frag_shader_module, nullptr);
   }
 
   std::vector<uint32_t> CompileShader(const std::string& source_name, shaderc_shader_kind shader_kind,

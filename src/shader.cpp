@@ -51,9 +51,10 @@ VkShaderModule CreateShaderModule(const std::vector<uint32_t>& code, const InitD
   return shader_module;
 }
 
-Shader::Shader(std::string shader_name, std::string file_name, ShaderType type, const InitData& init) {
+Shader::Shader(const char* file_name, const char* entry_name, 
+  ShaderType type, const InitData& init) : init_(init) {
 
-  std::string shader_source = ReadFile(shader_name.c_str());
+  std::string shader_source = ReadFile(file_name);
 
   shaderc_shader_kind kind;
   VkShaderStageFlagBits type_flag;
@@ -67,13 +68,17 @@ Shader::Shader(std::string shader_name, std::string file_name, ShaderType type, 
     type_flag = VK_SHADER_STAGE_FRAGMENT_BIT;
   }
 
-  std::vector<uint32_t> shader_bin = CompileShader(shader_name, kind, shader_source);
+  std::vector<uint32_t> shader_bin = CompileShader(file_name, kind, shader_source);
 
   module_ = CreateShaderModule(shader_bin, init);
 
   info_.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   info_.stage = type_flag;
   info_.module = module_;
-  info_.pName = shader_name.c_str();
+  info_.pName = entry_name;
+}
+
+Shader::~Shader() {
+  vkDestroyShaderModule(init_.device, module_, nullptr);
 }
 

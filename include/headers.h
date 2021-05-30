@@ -3,6 +3,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "vulkan_headers.h"
+#include "shader.h"
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
