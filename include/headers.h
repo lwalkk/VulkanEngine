@@ -1,6 +1,5 @@
 #pragma once
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "vulkan_headers.h"
 #include <assimp/Importer.hpp>
@@ -22,6 +21,9 @@
 #include <sstream>
 #include <chrono>
 #include <shaderc/shaderc.hpp>
+#include "texture.h"
+#include "vertex_buffer.h"
+#include "index_buffer.h"
 
 
 
