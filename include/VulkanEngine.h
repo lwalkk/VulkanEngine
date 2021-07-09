@@ -88,11 +88,11 @@ private:
 
     vkDestroyDescriptorSetLayout(instance.device, descriptor_set_layout, nullptr);
 
-    vkDestroyBuffer(instance.device, vertex_buffer, nullptr);
-    vkFreeMemory(instance.device, vertex_buffer_memory, nullptr);
+    vkDestroyBuffer(instance.device, vert_buffer.GetBuffer(), nullptr);
+    vkFreeMemory(instance.device, vert_buffer.GetBufferMemory(), nullptr);
 
-    vkDestroyBuffer(instance.device, index_buffer, nullptr);
-    vkFreeMemory(instance.device, index_buffer_memory, nullptr);
+    vkDestroyBuffer(instance.device, ind_buffer.GetBuffer(), nullptr);
+    vkFreeMemory(instance.device, ind_buffer.GetBufferMemory(), nullptr);
 
     for (size_t ii = 0; ii < MAX_FRAMES_IN_FLIGHT; ii++) {
       vkDestroySemaphore(instance.device, render_finished_semaphores[ii], nullptr);
@@ -682,6 +682,8 @@ private:
     if (vkCreateCommandPool(instance.device, &pool_info, nullptr, &command_pool) != VK_SUCCESS) {
       throw std::runtime_error("failed to create command pool!");
     }
+
+    render_data.command_pool = command_pool;
   }
 
   void CreateDepthResources() {
@@ -895,33 +897,8 @@ private:
     }
   }
 
-  // creating a vertex buffer for our triangle
   void CreateVertexBuffer() {
-    // get size of the vertex data
-    VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-
-    // create a Staging Buffer. The staging buffer is CPU-accessible memory
-    // to upload the vertex buffer to. Then the actual vertex buffer is in device 
-    // (non cpu) memory that is much faster to use.
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
- 
-    // put the vertex data from vertices to 'data'
-    // call vkMapMemory to map the vertex buffer memory into CPU accessible memory
-    void* data;
-    vkMapMemory(instance.device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, vertices.data(), (size_t)buffer_size);
-    vkUnmapMemory(instance.device, staging_buffer_memory);
-
-    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer, vertex_buffer_memory);
-
-    CopyBuffer(staging_buffer, vertex_buffer, buffer_size);
-
-    vkDestroyBuffer(instance.device, staging_buffer, nullptr);
-    vkFreeMemory(instance.device, staging_buffer_memory, nullptr);
+    vert_buffer = VertexBuffer(instance, render_data, vertices);
   }
 
   uint32_t FindMemoryType(uint32_t type_filter, VkMemoryPropertyFlags properties) {
@@ -1064,25 +1041,7 @@ private:
   }
 
   void CreateIndexBuffer() {
-    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
-
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
-
-    void* data;
-    vkMapMemory(instance.device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, indices.data(), (size_t)buffer_size);
-    vkUnmapMemory(instance.device, staging_buffer_memory);
-
-    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-      VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer, index_buffer_memory);
-
-    CopyBuffer(staging_buffer, index_buffer, buffer_size);
-
-    vkDestroyBuffer(instance.device, staging_buffer, nullptr);
-    vkFreeMemory(instance.device, staging_buffer_memory, nullptr);
+    ind_buffer = IndexBuffer(instance, render_data, indices);
   }
 
   void CreateUniformBuffers()
@@ -1227,13 +1186,13 @@ private:
       vkCmdBeginRenderPass(command_buffers[ii], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
       vkCmdBindPipeline(command_buffers[ii], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
-      VkBuffer vertex_buffers[] = { vertex_buffer };
+      VkBuffer vertex_buffers[] = { vert_buffer.GetBuffer()};
 
       VkDeviceSize offsets[] = { 0 };
 
       vkCmdBindVertexBuffers(command_buffers[ii], 0, 1, vertex_buffers, offsets);
 
-      vkCmdBindIndexBuffer(command_buffers[ii], index_buffer, 0, VK_INDEX_TYPE_UINT32);
+      vkCmdBindIndexBuffer(command_buffers[ii], ind_buffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
       vkCmdBindDescriptorSets(command_buffers[ii], VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_layout, 0, 1, &descriptor_sets[ii], 0, nullptr);
@@ -1602,8 +1561,10 @@ private:
 
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_buffer_memory;
+  VertexBuffer vert_buffer;
   VkBuffer index_buffer;
   VkDeviceMemory index_buffer_memory;
+  IndexBuffer ind_buffer;
 
   std::vector<VkBuffer> uniform_buffers;
   std::vector<VkDeviceMemory> uniform_buffers_memory;
@@ -1625,5 +1586,5 @@ private:
   bool frame_buffer_resized = false;
 
   InitData instance;
-
+  RenderData render_data;
 };

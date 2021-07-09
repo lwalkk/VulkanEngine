@@ -4,6 +4,8 @@
 
 class Buffer {
 public:
+
+  Buffer();
   Buffer(const InitData& instance, const RenderData& ren_dat, VkDeviceSize buffer_size, VkBufferUsageFlags usage, void* data);
 
   VkBuffer GetBuffer() const { return buffer_; }

@@ -5,6 +5,7 @@
 
 class IndexBuffer: public Buffer {
 public:
-  IndexBuffer(const InitData& init, const RenderData& render, const std::vector<Vertex>& vertices);
+  IndexBuffer();
+  IndexBuffer(const InitData& init, const RenderData& render, const std::vector<uint32_t>& vertices);
   void Bind() override;
 };

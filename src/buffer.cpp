@@ -2,6 +2,10 @@
 #include <iostream>
 
 
+Buffer::Buffer()
+{
+}
+
 Buffer::Buffer(const InitData& init, const RenderData& ren_dat, VkDeviceSize buffer_size, VkBufferUsageFlags usage, void* buffer_data) {
 
   VkBuffer staging_buffer;
